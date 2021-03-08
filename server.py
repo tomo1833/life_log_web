@@ -1,9 +1,12 @@
+from flask import Flask, make_response, render_template, request
+
 import calendar
 import datetime
-from flask import Flask, make_response, render_template, request
+import shutil
 import json
 import locale
 import openpyxl
+import os
 
 app = Flask(__name__)
 
@@ -13,19 +16,33 @@ def indexpage():
 
 @app.route('/caldownload', methods=['POST'])
 def caldownload():
-    #locale.setlocale(locale.LC_TIME, 'ja_JP.UTF-8')
-    print(locale.getlocale(locale.LC_TIME))
     locale.setlocale(locale.LC_TIME, 'ja_JP.utf8')
-    print(locale.getlocale(locale.LC_TIME))
 
     result = request.get_data()
     dec = json.loads(result)
+    
+    # 日付取得
+    today_time = datetime.datetime.now()
+    today_date_str = today_time.strftime("%Y%m%d")
+    today_time_str = today_time.strftime("%Y%m%d%H%M%S")
+    yesterday_date_str = (today_time - datetime.timedelta(days=1)).strftime("%Y%m%d")
 
-    for event in dec:
-         print(event['start'])
-         a = datetime.datetime.strptime(event['start']['dateTime'], '%Y-%m-%dT%H:%M:%S%z')
-         print(a)
-    wb = openpyxl.load_workbook('output.xlsx')
+    # 前日：ディレクトリ削除/当日：ディレクトリ作成 
+    yestaday_directory_path = './' + yesterday_date_str
+    today_directory_path = './' + today_date_str
+    if (os.path.isdir(yestaday_directory_path)):
+        shutil.rmtree(yestaday_directory_path)
+    elif not (os.path.isdir(today_directory_path)):
+        os.mkdir(today_directory_path)
+
+    # 日付ファイル作成
+    new_file_name = today_time_str + '_output.xlsx'
+    new_file_full_path = today_directory_path + '/' + new_file_name
+
+    # Excel file copy.
+    shutil.copy('./output.xlsx', new_file_full_path)
+
+    wb = openpyxl.load_workbook(new_file_full_path)
     sheet = wb['Sheet']
 
     for dateIndex in range(calendar.monthrange(2021, 2)[0], calendar.monthrange(2021, 2)[1]):
@@ -39,12 +56,12 @@ def caldownload():
                 sheet['E' + str(dateIndex + 5) ] = startTime.strftime('%H:%M')
                 sheet['F' + str(dateIndex + 5) ] = endTime.strftime('%H:%M')
 
-    wb.save('output.xlsx')
+    wb.save('newoutput.xlsx')
 
     XLSX_MIMETYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     response = make_response()
-    response.data = open("output.xlsx", "rb").read()
-    downloadFileName = 'output.xlsx'  
+    response.data = open(new_file_full_path, "rb").read()
+    downloadFileName = 'new_file_name'  
     response.headers['Content-Disposition'] = 'attachment; filename=' + downloadFileName
     response.mimetype = XLSX_MIMETYPE
     return response
