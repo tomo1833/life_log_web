@@ -1,201 +1,219 @@
 <!DOCTYPE html>
 <html lang="jp">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Life Log （ファイル出力）</title>
+        <link rel="stylesheet" href="/static/css/main.css" />
+    </head>
 
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Life Log （ファイル出力）</title>
-  <link rel="stylesheet" href="/static/css/main.css">
-</head>
+    <body>
+        <div class="container">
+            <header>
+                <div class="container-header">
+                    <div class="item-header">
+                        <h1>Life Log （Web出力）</h1>
+                    </div>
+                    <div class="item-nav">
+                        <a id="authorize_button" href="javascript:void(0);">ログイン</a>
+                        <a id="signout_button" href="javascript:void(0);">ログアウト</a>
+                    </div>
+                </div>
+            </header>
+            <main>
+                <div class="container-main">
+                    <div class="item-logo">
+                        <h2>Life Log （Web出力）</h2>
+                        <p>ログインを行ってください。</p>
+                    </div>
+                    <div id="main-item">
+                        <div class="item-text">
+                            <p>年月を入力してdownloadボタンをクリックするとGoogle Calendarから勤務表を出力します。</p>
+                        </div>
+                        <div class="item-input">
+                            <label>
+                                年月(YYYYMM)：
+                                <input id="input-year-month" type="text" name="year_month" size="6" maxlength="6" />
+                            </label>
+                        </div>
+                        <div class="item-button">
+                            <button id="download_button" class="btn btn--orange btn--radius" onclick="listUpcomingEvents();">勤務表ダウンロード</button>
+                        </div>
+                    </div>
+                </div>
 
-<body>
+                <script type="text/javascript">
+                    // Client ID and API key from the Developer Console
+                    let CLIENT_ID = "{{ client_id }}";
+                    let API_KEY = "{{ api_key }}";
 
-  <div class="container">
-    <header>
-      <h1>Life Log （Web出力）</h1>
-    </header>
+                    // Array of API discovery doc URLs for APIs used by the quickstart
+                    let DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
 
-    <main>
-      <!--Add buttons to initiate auth sequence and sign out-->
-      <div class="div-button">
-        <a id="authorize_button" href="javascript:void(0);" class="btn btn--orange btn--radius">Authorize</a>
-        <a id="signout_button" href="javascript:void(0);" class="btn btn--orange btn--radius">Sign Out</a>
-        <a id="download_button" href="javascript:void(0);" class="btn btn--orange btn--radius" onclick="listUpcomingEvents();">downLoad</a>
+                    // Authorization scopes required by the API; multiple scopes can be
+                    // included, separated by spaces.
+                    let SCOPES = "https://www.googleapis.com/auth/calendar.readonly";
 
-        <pre id="content" style="white-space: pre-wrap;"></pre>
-      </div>
-      <script type="text/javascript">
-        // Client ID and API key from the Developer Console
-        var CLIENT_ID = 'XXXXX';
-        var API_KEY = 'XXXXX';
+                    let authorize_button = document.getElementById("authorize_button");
+                    let download_button = document.getElementById("download_button");
+                    let signout_button = document.getElementById("signout_button");
+                    let main_item = document.getElementById("main-item");
 
-        // Array of API discovery doc URLs for APIs used by the quickstart
-        var DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
+                    /**
+                     *  On load, called to load the auth2 library and API client library.
+                     */
+                    function handleClientLoad() {
+                        gapi.load("client:auth2", initClient);
+                        document.getElementById("input-year-month").value = "202103";
+                    }
 
-        // Authorization scopes required by the API; multiple scopes can be
-        // included, separated by spaces.
-        var SCOPES = "https://www.googleapis.com/auth/calendar.readonly";
+                    /**
+                     *  Initializes the API client library and sets up sign-in state
+                     *  listeners.
+                     */
+                    function initClient() {
+                        gapi.client
+                            .init({
+                                apiKey: API_KEY,
+                                clientId: CLIENT_ID,
+                                discoveryDocs: DISCOVERY_DOCS,
+                                scope: SCOPES,
+                            })
+                            .then(
+                                function () {
+                                    // Listen for sign-in state changes.
+                                    gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
 
-        var authorizeButton = document.getElementById('authorize_button');
-        var signoutButton = document.getElementById('signout_button');
-        var downloadButton = document.getElementById('download_button');
+                                    // Handle the initial sign-in state.
+                                    updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+                                    authorize_button.onclick = handleAuthClick;
+                                    signout_button.onclick = handleSignoutClick;
+                                },
 
-        /**
-         *  On load, called to load the auth2 library and API client library.
-         */
-        function handleClientLoad() {
-          gapi.load('client:auth2', initClient);
-        }
+                                function (error) {}
+                            );
+                    }
 
-        /**
-         *  Initializes the API client library and sets up sign-in state
-         *  listeners.
-         */
-        function initClient() {
-          gapi.client.init({
-            apiKey: API_KEY,
-            clientId: CLIENT_ID,
-            discoveryDocs: DISCOVERY_DOCS,
-            scope: SCOPES
-          }).then(function () {
-            // Listen for sign-in state changes.
-            gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+                    /**
+                     *  Called when the signed in status changes, to update the UI
+                     *  appropriately. After a sign-in, the API is called.
+                     */
+                    function updateSigninStatus(isSignedIn) {
+                        if (isSignedIn) {
+                            authorize_button.style.display = "none";
+                            download_button.style.display = "";
+                            signout_button.style.display = "block";
+                            main_item.style.display = "block";
+                        } else {
+                            authorize_button.style.display = "block";
+                            signout_button.style.display = "none";
+                            main_item.style.display = "none";
+                        }
+                    }
 
-            // Handle the initial sign-in state.
-            updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-            authorizeButton.onclick = handleAuthClick;
-            signoutButton.onclick = handleSignoutClick;
-          }, function (error) {
-            appendPre(JSON.stringify(error, null, 2));
-          });
-        }
+                    /**
+                     *  Sign in the user upon button click.
+                     */
+                    function handleAuthClick(event) {
+                        gapi.auth2.getAuthInstance().signIn();
+                    }
 
-        /**
-         *  Called when the signed in status changes, to update the UI
-         *  appropriately. After a sign-in, the API is called.
-         */
-        function updateSigninStatus(isSignedIn) {
-          if (isSignedIn) {
-            authorizeButton.style.display = 'none';
-            signoutButton.style.display = 'block';
-            downloadButton.style.display = 'block';
-          } else {
-            authorizeButton.style.display = 'block';
-            signoutButton.style.display = 'none';
-          }
-        }
+                    /**
+                     *  Sign out the user upon button click.
+                     */
+                    function handleSignoutClick(event) {
+                        gapi.auth2.getAuthInstance().signOut();
+                    }
 
-        /**
-         *  Sign in the user upon button click.
-         */
-        function handleAuthClick(event) {
-          gapi.auth2.getAuthInstance().signIn();
-        }
+                    /**
+                     *  Sign in the user upon button click.
+                     */
+                    function handleDownLoadClick(event) {
+                        listUpcomingEvents();
+                    }
 
-        /**
-         *  Sign out the user upon button click.
-         */
-        function handleSignoutClick(event) {
-          gapi.auth2.getAuthInstance().signOut();
-        }
+                    /**
+                     *
+                     */
+                    function s2ab(s) {
+                        let buf = new ArrayBuffer(s.length);
+                        let view = new Uint8Array(buf);
+                        for (var i = 0; i != s.length; ++i) {
+                            view[i] = s.charCodeAt(i) & 0xff;
+                            return buf;
+                        }
+                    }
 
-        /**
-          *  Sign in the user upon button click.
-          */
-        function handleDownLoadClick(event) {
-          listUpcomingEvents();
-        }
+                    /**
+                     * Print the summary and start datetime/date of the next ten events in
+                     * the authorized user's calendar. If no events are found an
+                     * appropriate message is printed.
+                     */
+                    function listUpcomingEvents() {
+                        let year_month = document.getElementById("input-year-month").value;
+                        let year = year_month.substr(0, 4);
+                        let month = year_month.substr(4, 2);
 
-        /**
-         * Append a pre element to the body containing the given message
-         * as its text node. Used to display the results of the API call.
-         *
-         * @param {string} message Text to be placed in pre element.
-         */
-        function appendPre(message) {
-          var pre = document.getElementById('content');
-          var textContent = document.createTextNode(message + '\n');
-          pre.appendChild(textContent);
-        }
+                        gapi.client.calendar.events
+                            .list({
+                                calendarId: "primary",
+                                timeMin: new Date(year, month - 1).toISOString(),
+                                showDeleted: false,
+                                singleEvents: true,
+                                maxResults: 50,
+                                orderBy: "startTime",
+                                q: "仕事",
+                            })
+                            .then(function (response) {
+                                let events = response.result.items;
 
-        function s2ab(s) {
-          var buf = new ArrayBuffer(s.length);
-          var view = new Uint8Array(buf);
-          for (var i = 0; i != s.length; ++i) view[i] = s.charCodeAt(i) & 0xFF;
-          return buf;
-        }
+                                if (events.length > 0) {
+                                    events.push({ requestdate: year_month });
+                                    let xhr = new XMLHttpRequest();
+                                    xhr.open("POST", "http://localhost:5000/caldownload", true);
+                                    xhr.responseType = "blob";
 
-        /**
-         * Print the summary and start datetime/date of the next ten events in
-         * the authorized user's calendar. If no events are found an
-         * appropriate message is printed.
-         */
-        function listUpcomingEvents() {
-          gapi.client.calendar.events.list({
-            'calendarId': 'primary',
-            'timeMin': (new Date(new Date().setDate(1))).toISOString(),
-            'showDeleted': false,
-            'singleEvents': true,
-            'maxResults': 50,
-            'orderBy': 'startTime',
-            'q': '仕事'
-          }).then(function (response) {
-            var events = response.result.items;
-            console.log('-------------->');
-            console.log(JSON.stringify(events));
-            console.log(typeof (JSON.stringify(events)));
+                                    xhr.onload = function (e) {
+                                        if (this.status == 200) {
+                                            let blob = this.response;
+                                            //aタグの生成
+                                            let a = document.createElement("a");
+                                            //レスポンスからBlobオブジェクト＆URLの生成
+                                            let blobUrl = window.URL.createObjectURL(
+                                                new Blob([blob], {
+                                                    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                                })
+                                            );
 
+                                            //上で生成したaタグをアペンド
+                                            document.body.appendChild(a);
+                                            a.style = "display: none";
+                                            //BlobオブジェクトURLをセット
+                                            a.href = blobUrl;
+                                            //ダウンロードさせるファイル名の生成
+                                            a.download = "output.xlsx";
+                                            //クリックイベント発火
+                                            a.click();
+                                        }
+                                    };
 
-            appendPre('Upcoming events:');
+                                    xhr.send(JSON.stringify(events));
+                                } else {
+                                }
+                            });
+                    }
+                </script>
 
-
-            if (events.length > 0) {
-              for (i = 0; i < events.length; i++) {
-                var event = events[i];
-                var start = event.start.dateTime;
-                var end = event.end.dateTime;
-
-                appendPre(event.summary + ' (' + start + ')' + ' (' + end + ')')
-              }
-              let xhr = new XMLHttpRequest();
-              xhr.open('POST', 'http://localhost:5000/caldownload', true);
-              xhr.responseType = 'blob';
-
-              xhr.onload = function (e) {
-                if (this.status == 200) {
-                  var blob = this.response;
-                  //aタグの生成
-                  var a = document.createElement("a");
-                  //レスポンスからBlobオブジェクト＆URLの生成
-                  var blobUrl = window.URL.createObjectURL(new Blob([blob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-                  //上で生成したaタグをアペンド
-                  document.body.appendChild(a);
-                  a.style = "display: none";
-                  //BlobオブジェクトURLをセット
-                  a.href = blobUrl;
-                  //ダウンロードさせるファイル名の生成
-                  a.download = "output.xlsx";
-                  //クリックイベント発火
-                  a.click();
-
-                }
-              };
-              xhr.send(JSON.stringify(events));
-            } else {
-              appendPre('No upcoming events found.');
-            }
-          });
-        }
-
-      </script>
-
-      <script async defer src="https://apis.google.com/js/api.js" onload="this.onload=function(){};handleClientLoad()" onreadystatechange="if (this.readyState === 'complete') this.onload()">
-      </script>
-    </main>
-    <footer>Copyright © 2021 Full of Life. All Rights Reserved.</footer>
-  </div>
-
-</body>
-
+                <script
+                    async
+                    defer
+                    src="https://apis.google.com/js/api.js"
+                    onload="this.onload=function(){};handleClientLoad()"
+                    onreadystatechange="if (this.readyState === 'complete') this.onload()"
+                ></script>
+            </main>
+            <footer>Copyright © 2021 Full of Life. All Rights Reserved.</footer>
+        </div>
+    </body>
 </html>

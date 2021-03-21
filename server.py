@@ -12,7 +12,11 @@ app = Flask(__name__)
 
 @app.route('/')
 def indexpage():
-    return render_template('index.html')
+
+    env_client_id = os.environ['CLIENT_ID']
+    env_api_key = os.environ['API_KEY']
+
+    return render_template('index.html', client_id=env_client_id, api_key=env_api_key)
 
 @app.route('/caldownload', methods=['POST'])
 def caldownload():
@@ -21,13 +25,15 @@ def caldownload():
     result = request.get_data()
     dec = json.loads(result)
     
+    # print(dec)
     # 日付取得
     today_time = datetime.datetime.now()
     today_date_str = today_time.strftime("%Y%m%d")
     today_time_str = today_time.strftime("%Y%m%d%H%M%S")
     yesterday_date_str = (today_time - datetime.timedelta(days=1)).strftime("%Y%m%d")
 
-    # 前日：ディレクトリ削除/当日：ディレクトリ作成 
+    # 前日：ディレクトリ削除/当日：ディレクトリ作成
+    # TODO 削除は前日以前
     yestaday_directory_path = './' + yesterday_date_str
     today_directory_path = './' + today_date_str
     if (os.path.isdir(yestaday_directory_path)):
@@ -42,28 +48,42 @@ def caldownload():
     # Excel file copy.
     shutil.copy('./output.xlsx', new_file_full_path)
 
+    # WorkBookロード
     wb = openpyxl.load_workbook(new_file_full_path)
     sheet = wb['Sheet']
 
-    for dateIndex in range(calendar.monthrange(2021, 2)[0], calendar.monthrange(2021, 2)[1]):
+    # WorkBookセル書き込み
+    # 初期値
+    year = 2020
+    month = 1
+    last_data = dec[len(dec) - 1 ]
+    if 'requestdate' in last_data:
+        year = int(last_data['requestdate'][:4])
+        month = int(last_data['requestdate'][4:])
+
+    for dateIndex in range(calendar.monthrange(year, month)[0], calendar.monthrange(year, month)[1]):
         sheet['A' + str(dateIndex + 5) ] = dateIndex + 1
-        sheet['C' + str(dateIndex + 5) ] = datetime.date(2021, 2, dateIndex + 1).strftime('%a')
+        sheet['C' + str(dateIndex + 5) ] = datetime.date(year, month, dateIndex + 1).strftime('%a')
         for event in dec:
-            startTime = datetime.datetime.strptime(event['start']['dateTime'], '%Y-%m-%dT%H:%M:%S%z')
-            endTime = datetime.datetime.strptime(event['end']['dateTime'], '%Y-%m-%dT%H:%M:%S%z')
-            if dateIndex + 1 == startTime.day:
-                sheet['D' + str(dateIndex + 5) ] = '○'
-                sheet['E' + str(dateIndex + 5) ] = startTime.strftime('%H:%M')
-                sheet['F' + str(dateIndex + 5) ] = endTime.strftime('%H:%M')
+            if 'start' in event:
+                startTime = datetime.datetime.strptime(event['start']['dateTime'], '%Y-%m-%dT%H:%M:%S%z')
+                endTime = datetime.datetime.strptime(event['end']['dateTime'], '%Y-%m-%dT%H:%M:%S%z')
+                if dateIndex + 1 == startTime.day:
+                    sheet['D' + str(dateIndex + 5) ] = '○'
+                    sheet['E' + str(dateIndex + 5) ] = startTime.strftime('%H:%M')
+                    sheet['F' + str(dateIndex + 5) ] = endTime.strftime('%H:%M')
 
-    wb.save('newoutput.xlsx')
+    # WorkBook書き込み
+    wb.save(new_file_full_path)
 
+    # スプレットシートダウンロード
     XLSX_MIMETYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     response = make_response()
     response.data = open(new_file_full_path, "rb").read()
     downloadFileName = 'new_file_name'  
     response.headers['Content-Disposition'] = 'attachment; filename=' + downloadFileName
     response.mimetype = XLSX_MIMETYPE
+
     return response
     
 

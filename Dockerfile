@@ -20,8 +20,17 @@ EXPOSE 5000
 
 # ==============================================================================
 # build
-# sudo docker build -t my-flusk-app .
+# $ sudo docker build -t my-flusk-app .
 
 # ==============================================================================
 # run
-# sudo docker run -it --network host -v /home/aw/work_dir/06_project:/usr/app/lifelog --name flusk-app -d my-flusk-app
+# $ sudo docker run --env-file ./.env -it --network host -v /home/aw/work_dir/life_log_web:/usr/app/prj --name flusk-app -d my-flusk-app
+# $ sudo docker run -it --network host -v /home/aw/work_dir/life_log_web:/usr/app/prj --name flusk-app -d my-flusk-app
+
+# ==============================================================================
+# exec
+# $ sudo docker exec -it flusk-app sh
+
+# ==============================================================================
+# server run
+# # python server.py

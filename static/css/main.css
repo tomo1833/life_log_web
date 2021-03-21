@@ -1,5 +1,9 @@
-body, header, footer, div, h1 {
-    padding:0;
+body,
+header,
+footer,
+div,
+h1 {
+    padding: 0;
     margin: 0;
 }
 
@@ -8,6 +12,22 @@ body, header, footer, div, h1 {
     width: 100vw;
     height: 100vh;
     text-align: center;
+}
+
+.container-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+}
+
+.container-main {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+}
+
+.item-button {
+    padding: 10px;
 }
 
 header {
@@ -38,22 +58,34 @@ footer {
     bottom: 0;
 }
 
-.btn--orange,
-a.btn--orange {
-  width: 250px;
-  color: #fff;
-  background-color: #eb6100;
-  cursor:pointer;
-  padding: 10px;
-  margin: 10px;
+.btn--orange {
+    background-color: #eb6100;
+    border: none;
+    color: #fff;
+    margin: 10px;
+    padding: 10px;
+    width: 250px;
 }
 
-.btn--orange:hover,
-a.btn--orange:hover {
-  color: #fff;
-  background: #f56500;
+.btn--orange:hover {
+    background: #f56500;
+    color: #fff;
+    cursor: pointer;
 }
 
-a.btn--radius {
-   border-radius: 100vh;
+.btn--radius {
+    border-radius: 100vh;
+}
+
+text1 {
+    width: 100%;
+    padding: 10px 15px;
+    font-size: 16px;
+    border-radius: 3px;
+    border: 2px solid #ddd;
+    box-sizing: border-box;
+}
+
+#main-item {
+    display: none;
 }
